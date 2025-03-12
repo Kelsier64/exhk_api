@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 import os
-import uuid
 from img_processor import ExamProcessor
+from datetime import datetime  # added for timestamp-based filename generation
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'imgs'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
@@ -18,8 +19,9 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        new_filename = f"{uuid.uuid4().hex}{os.path.splitext(filename)[1]}"
+        extension = file.filename.rsplit('.', 1)[1].lower()  # get file extension
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')  # generate timestamp
+        new_filename = f"{timestamp}{os.path.splitext(file.filename)[1]}"  # create new filename
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
         processor.main(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
         return jsonify({'message': 'File successfully uploaded', 'filename': new_filename}), 200
