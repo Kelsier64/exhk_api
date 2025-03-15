@@ -53,6 +53,11 @@ async def ping(interaction: discord.Interaction):
 
 @bot.tree.command(name="upload", description="上傳文件")
 async def upload(interaction: discord.Interaction, file: discord.Attachment):
+
+    if not bot.voice_clients:
+        await interaction.response.send_message("Bot 不在任何語音頻道中")
+        return
+    
     if file.filename.split('.')[-1].lower() not in {'png', 'jpg', 'jpeg', 'gif'}:
         await interaction.response.send_message("文件類型不允許")
         return
