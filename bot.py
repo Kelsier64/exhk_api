@@ -133,6 +133,12 @@ def upload_image():
 
     return jsonify({"message": "File processed", "filename": new_filename}), 200
 
+@app.route('/reload', methods=['GET'])
+def reload_processor():
+    global processor
+    processor = ExamProcessor()
+    return jsonify({'message': 'Processor reloaded'}), 200
+
 def run_flask():
     app.run(host='0.0.0.0', port=5000)
 
