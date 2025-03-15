@@ -8,6 +8,8 @@ from datetime import datetime
 import asyncio
 from gtts import gTTS
 import time
+from flask import Flask, request, jsonify
+from threading import Thread
 
 load_dotenv()
 token = os.getenv("DISCORD_BOT_TOKEN")
@@ -19,6 +21,8 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 processor = ExamProcessor()
+
+app = Flask(__name__)
 
 @bot.event
 async def on_ready():
@@ -105,7 +109,37 @@ async def leave(interaction: discord.Interaction):
     await bot.voice_clients[0].disconnect()
     await interaction.response.send_message("已離開語音頻道")
 
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
 
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file.filename.split('.')[-1].lower() not in {'png', 'jpg', 'jpeg', 'gif'}:
+        return jsonify({"error": "File type not allowed"}), 400
+
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    new_filename = f"{timestamp}{os.path.splitext(file.filename)[1]}"
+    file_path = os.path.join('imgs', new_filename)
+    
+    file.save(file_path)
+    
+    for ans in processor.main(file_path):
+        print("generated:" + ans)
+        asyncio.run(speak_text(ans))
+
+    return jsonify({"message": "File processed", "filename": new_filename}), 200
+
+def run_flask():
+    app.run(host='0.0.0.0', port=5000)
+
+async def main():
+    flask_thread = Thread(target=run_flask)
+    flask_thread.start()
+    await bot.start(token)
 
 if __name__ == "__main__":
-    bot.run(token)
+    asyncio.run(main())
