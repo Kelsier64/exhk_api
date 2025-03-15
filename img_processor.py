@@ -104,11 +104,11 @@ class ExamProcessor:
         """使用一張或多張圖像生成問題或題組的答案。"""
         # 佔位符實現；請替換為實際的 AI 模型調用
         print(prompt)
-        return "skip"
+        # return "skip"
         # 取消注釋並調整為實際實現：
-        # msgs = [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": "high"}} for img in imgs]},
-        #         {"role": "user", "content": prompt}]
-        # return o1_request(msgs)
+        msgs = [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": "high"}} for img in imgs]},
+                {"role": "user", "content": prompt}]
+        return gpt4o_request(msgs)
 
     def class_match(self, class_type):
         """將題型映射到相應的提示語。"""
@@ -147,7 +147,7 @@ class ExamProcessor:
             prompt = f"請回答第{block}題 並忽略其他所有題目，{self.class_prompt}"
         
         answer = self.img_ans(imgs, prompt)
-        print(answer)
+        return f"第{block}題"+answer
 
     def process_bad_set(self, img1, img2, set_list, changed_class):
         """
@@ -161,7 +161,7 @@ class ExamProcessor:
             # 使用當前的 class_prompt 生成提示並獲取答案
         prompt = f"請回答第{set_list}題 並忽略其他所有題目，{self.class_prompt}"
         answer = self.img_ans([img1, img2], prompt)
-        print(f"第{n}題答案：{answer}")
+        return f"第{set_list}題"+answer
 
     def main(self, path):
         """主方法，處理從 image4.png 到 image7.png 的考試圖像。"""
@@ -180,7 +180,8 @@ class ExamProcessor:
         if self.bad_set is not None:
             # 處理 bad set，並傳遞兩張圖片的題型變化信息
             print("處理 bad set:", self.bad_set)
-            self.process_bad_set(self.bad_img, img, self.bad_set, self.bad_changed_class)
+            yield self.process_bad_set(self.bad_img, img, self.bad_set, self.bad_changed_class)
+
             # 排除已處理的 bad set 題目
             number = [n for n in number if n not in self.bad_set]
             self.bad_set = None
@@ -203,7 +204,8 @@ class ExamProcessor:
 
         # 處理當前圖像中的每個區塊
         for block in blocks:
-            self.process_block([img], block, reply_change)
+            yield self.process_block([img], block, reply_change)
+            
 
         return 0
 

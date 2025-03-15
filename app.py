@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
 import os
 from img_processor import ExamProcessor
-from datetime import datetime  # added for timestamp-based filename generation
+from datetime import datetime
+
+
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'imgs'
@@ -34,7 +35,6 @@ def reload_processor():
     global processor
     processor = ExamProcessor()
     return jsonify({'message': 'Processor reloaded'}), 200
-
 
 if __name__ == '__main__':
     app.run(debug=True)
