@@ -74,12 +74,11 @@ async def upload(interaction: discord.Interaction, file: discord.Attachment):
     
     await file.save(file_path)
     
-    for ans in processor.main("math/image1.png"):
+    for ans in processor.main(file_path):
         print("generated:"+ans)
         await speak_text(ans)
 
     await interaction.followup.send(f"文件處理完成: {new_filename}")
-
 
 @bot.tree.command(name="reload", description="重新加載處理器")
 async def reload_processor(interaction: discord.Interaction):
@@ -108,6 +107,16 @@ async def leave(interaction: discord.Interaction):
 
     await bot.voice_clients[0].disconnect()
     await interaction.response.send_message("已離開語音頻道")
+
+@bot.tree.command(name="speak", description="讓Bot說話")
+async def speak(interaction: discord.Interaction, text: str):
+    if not bot.voice_clients:
+        await interaction.response.send_message("Bot 不在任何語音頻道中")
+        return
+
+    await speak_text(text)
+    await interaction.response.send_message("播放完成")
+    
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
