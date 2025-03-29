@@ -126,7 +126,6 @@ class ExamProcessor:
             {"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": "high"}}]},
             {"role": "user", "content": prompt}
         ]
-
         return await async_json_request(msgs)
 
     async def img_change(self, img):
@@ -177,7 +176,6 @@ class ExamProcessor:
         return self.class_prompt  # Default fallback
 
     async def process_block(self, imgs, block, changed_class):
-        
         start_n = block[0]
         # Update prompt if there’s a type change and not in mixed mode
         if start_n == changed_class["n"] and not self.mixd and changed_class["class"] != "無":
@@ -192,7 +190,6 @@ class ExamProcessor:
         return f"第{block}題{answer}"
 
     async def process_bad_set(self, img1, img2, set_list, changed_class):
-
         for n in set_list:
             if n == changed_class["n"] and changed_class["class"] != "無":
                 self.class_prompt = self.class_match(changed_class["class"])
@@ -202,7 +199,10 @@ class ExamProcessor:
         return f"第{set_list}題{answer}"
 
     async def main(self, path):
-        """Process a single image asynchronously."""
+        """
+        Process a single image asynchronously.
+        修改點：改成 async generator，完成一題就 yield 一個結果
+        """
         with open(path, "rb") as image_file:
             img = base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -211,16 +211,13 @@ class ExamProcessor:
             self.img_number(img),
             self.img_change(img)
         )
-        print(reply_number)
         number = reply_number["number"]
         set_list = reply_number["set"]
 
-        results = []
-
+        # 如果前一張圖片有跨頁的題組，先處理並 yield 結果
         if self.bad_set is not None:
-            # Process bad set with the previous and current image
             result = await self.process_bad_set(self.bad_img, img, self.bad_set, self.bad_changed_class)
-            results.append(result)
+            yield result
             # Exclude bad set questions from current processing
             number = [n for n in number if n not in self.bad_set]
             self.bad_set = None
@@ -241,17 +238,19 @@ class ExamProcessor:
             else:
                 blocks = [[n] for n in number]
 
-        # Process all blocks concurrently
+        # Process all blocks concurrently and yield each result as完成
         tasks = [self.process_block([img], block, reply_change) for block in blocks]
-        block_results = await asyncio.gather(*tasks)
-        results.extend(block_results)
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
+            yield result
 
-        return results
-
-
-
+# 修改 __main__ 部分，使用 async for 來即時印出每一 yield 出來的答案
 if __name__ == "__main__":
     processor = ExamProcessor()
-    for i in range(5, 8):
-        input("按 Enter 繼續...")
-        asyncio.run(processor.main(f"physics/image{i}.png"))
+    async def run_processing():
+        for i in range(5, 8):
+            input("按 Enter 繼續...")
+            # main 變成 async generator，使用 async for 遍歷 yield 的結果
+            async for res in processor.main(f"physics/image{i}.png"):
+                print(res)
+    asyncio.run(run_processing())
